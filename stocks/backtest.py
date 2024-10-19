@@ -33,7 +33,7 @@ def backtest_strategy(initial_investment, prices, short_window=50, long_window=2
         drawdown = (peak_value - portfolio_value) / peak_value
         max_drawdown = max(max_drawdown, drawdown)
 
-    final_value = cash + holdings * df['price'].iloc[-1]
+    final_value = cash + holdings * float(df['price'].iloc[-1])
     total_return = (final_value - initial_investment) / initial_investment * 100
 
     performance_summary = {

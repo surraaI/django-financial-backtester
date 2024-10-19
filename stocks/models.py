@@ -40,3 +40,12 @@ class StockData(models.Model):
 
     def __str__(self):
         return f"{self.symbol} - {self.date}"
+
+
+class StockPricePrediction(models.Model):
+    stock_symbol = models.CharField(max_length=10)
+    prediction_date = models.DateField()
+    predicted_price = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.symbol} - {self.prediction_date} - Predicted: {self.predicted_price}"

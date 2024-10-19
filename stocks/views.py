@@ -5,6 +5,15 @@ from django.conf import settings
 import requests
 from stocks.backtest import backtest_strategy
 from stocks.models import StockData
+from django.utils.timezone import now
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+import numpy as np
+import pandas as pd
+from .utils import load_model
+from .models import StockPricePrediction
+
 
 def fetch_stock_data_view(request):
     symbol = 'AAPL'
@@ -15,8 +24,6 @@ def fetch_stock_data_view(request):
         response = requests.get(url)
         response.raise_for_status()
         data = response.json()
-        # print('datafetched from the Api')
-        # print(data)
 
         if 'Note' in data:
             return JsonResponse({"error": "API call limit reached. Please try again later."}, status=429)
@@ -36,13 +43,6 @@ def fetch_stock_data_view(request):
                     'volume': int(values['5. volume'])
                 }
             )
-            # print(connection.queries)
-        
-        # loop over data in database and print row by row
-        # print('printing data from the database')
-        # for row in StockData.objects.all():
-        #     print(row) 
-        
         
         return JsonResponse({"success": f"Successfully fetched and stored data for {symbol}"})
 
@@ -73,10 +73,8 @@ def backtest_view(request):
     if not start_date or not end_date:
         return JsonResponse({"error": "Please provide both start_date and end_date parameters."}, status=400)
 
-    # Fetch historical data for the selected symbol
     stock_data = StockData.objects.filter(symbol=symbol, date__range=[start_date, end_date]).order_by('date')
     print(stock_data)
-    # Fetch all historical data for the selected symbol
     stock_data = StockData.objects.filter(symbol=symbol).order_by('date')
     for row in stock_data:
         print(row)
@@ -87,10 +85,7 @@ def backtest_view(request):
     if not stock_data.exists():
         return JsonResponse({"error": "No stock data found for the given date range."}, status=404)
 
-    # Convert data to a list of closing prices
     prices = stock_data.values_list('close_price', flat=True)
-    
-    # Run the backtest strategy
     final_value, transactions, performance_summary = backtest_strategy(initial_investment, prices, short_window, long_window)
 
     return JsonResponse({
@@ -102,3 +97,38 @@ def backtest_view(request):
         "transactions": transactions,
         "performance_summary": performance_summary
     })
+
+class PredictStockView(APIView):
+    def get(self, request, symbol, format=None):
+        model = load_model()
+
+        historical_data = StockData.objects.filter(symbol=symbol).order_by('date')
+        if not historical_data.exists():
+            return Response({
+                'error': f'No historical data found for stock symbol: {symbol}'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        historical_prices = np.array([entry.close_price for entry in historical_data])
+        historical_dates = np.array([entry.date for entry in historical_data])
+        future_dates = pd.date_range(start=now().date(), periods=30).to_pydatetime()
+        future_days = np.array([i for i in range(len(historical_prices) + 1, len(historical_prices) + 31)]).reshape(-1, 1)
+        predicted_prices = model.predict(future_days)
+        predictions = []
+        for i, price in enumerate(predicted_prices):
+            prediction = StockPricePrediction(
+                stock_symbol=symbol,
+                prediction_date=future_dates[i],
+                predicted_price=price
+            )
+            predictions.append(prediction)
+        StockPricePrediction.objects.bulk_create(predictions)
+
+        return Response({
+            'stock_symbol': symbol,
+            'predicted_prices': [
+                {
+                    'predicted_date': future_dates[i].strftime('%Y-%m-%d'),
+                    'predicted_price': predicted_prices[i]
+                } for i in range(len(predicted_prices))
+            ]
+        }, status=status.HTTP_200_OK)
