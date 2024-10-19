@@ -23,6 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
+# SECRET_KEY = config('SECRET_KEY')
 SECRET_KEY = 'django-insecure-k4ow8g3e)3ydup#a&j%0p#pss^d1m+3gn-_r8z&lr_s8xwr+=b'
 
 
@@ -81,10 +82,15 @@ WSGI_APPLICATION = 'financialbacktester.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DB_NAME'),
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST', default='localhost'),
+        'PORT': config('DB_PORT', default='5432'),
     }
 }
+
 
 
 # Password validation
