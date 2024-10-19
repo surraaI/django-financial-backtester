@@ -14,13 +14,10 @@ class Command(BaseCommand):
 
         try:
             response = requests.get(url)
-
-            # Check if the response was successful
-            response.raise_for_status()  # Raise an error for bad responses
+            response.raise_for_status()  
 
             data = response.json()
 
-            # Check for API limit reached
             if 'Note' in data:
                 self.stdout.write(self.style.WARNING("API call limit reached. Please try again later."))
                 return
