@@ -16,13 +16,11 @@ def backtest_strategy(initial_investment, prices, short_window=50, long_window=2
         short_mavg = float(df['short_mavg'].iloc[i])
         long_mavg = float(df['long_mavg'].iloc[i])
 
-        # Buy condition: when short-term moving average crosses above long-term
         if short_mavg > long_mavg and cash >= price:
             holdings += 1
             cash -= price
             transactions.append(('buy', i, price))
 
-        # Sell condition: when price is greater than the long-term moving average
         elif price > long_mavg and holdings > 0:
             holdings -= 1
             cash += price
